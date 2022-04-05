@@ -1,16 +1,27 @@
-package main
+package utils
 
 import (
 	"crypto/md5"
+	"encoding/binary"
 	"encoding/hex"
 	"io"
 	"log"
 	"os"
 )
 
-func PathExists(path string) bool {
-	_, err := os.Stat(path)
-	if err == nil {
+func FileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err == nil && !info.IsDir() {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return false
+}
+func DirExists(path string) bool {
+	info, err := os.Stat(path)
+	if err == nil && info.IsDir() {
 		return true
 	}
 	if os.IsNotExist(err) {
@@ -42,4 +53,8 @@ func MD5F(fName string) string {
 		log.Fatal(e)
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func ReadUInt32(data []byte) int {
+	return int(binary.LittleEndian.Uint32(data))
 }

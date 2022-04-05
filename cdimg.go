@@ -1,6 +1,8 @@
 package main
 
 import (
+	"TMGS3Tools/ofs3"
+	"TMGS3Tools/utils"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -67,7 +69,7 @@ func LoadIdx(idxFile string) *DFI {
 }
 
 func (d *DFI) SetDir(dir string, isInput bool) {
-	if !isInput && !PathExists(dir) {
+	if !isInput && !utils.DirExists(dir) {
 		// output
 		os.Mkdir(dir, os.ModePerm)
 	}
@@ -82,7 +84,7 @@ func (d *DFI) SetDir(dir string, isInput bool) {
 	}
 }
 
-func (d *DFI) LoadImg(imgFile string) {
+func (d *DFI) LoadImg(imgFile string, openOfs3 bool) {
 
 	f, _ := os.Open(imgFile)
 	defer f.Close()
@@ -93,18 +95,31 @@ func (d *DFI) LoadImg(imgFile string) {
 			if ShowLog {
 				fmt.Printf("文件夹 %v\n", node)
 			}
-			if !PathExists(node.FilePath) {
+			if !utils.DirExists(node.FilePath) {
 				os.Mkdir(node.FilePath, os.ModePerm)
 			}
 		} else if node.Offset+node.Length <= int(size) {
-			if ShowLog {
-				fmt.Printf("文件 %v\n", node)
-			}
-			tf, _ := os.Create(node.FilePath)
+
 			data := make([]byte, node.Length)
 			f.ReadAt(data, int64(node.Offset))
-			tf.Write(data)
-			tf.Close()
+
+			if openOfs3 && len(data) > 4 && string(data[0:4]) == "OFS3" {
+				if ShowLog {
+					fmt.Printf("OFS3文件 %v\n", node)
+				}
+				ofs := ofs3.OpenOFS3(data, node.FilePath)
+				if ShowLog {
+					fmt.Printf("\t %v\n", ofs.Header)
+				}
+			} else {
+				if ShowLog {
+					fmt.Printf("文件 %v\n", node)
+				}
+				tf, _ := os.Create(node.FilePath)
+				tf.Write(data)
+				tf.Close()
+			}
+
 		} else {
 			if ShowLog {
 				fmt.Printf("不在此文件中 %v\n", node)
@@ -140,13 +155,13 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool) {
 		}
 		io.Copy(out, f)
 		offset = int(size)
-		offset = AlignUp(offset, 2048)
+		offset = utils.AlignUp(offset, 2048)
 	}
 	for i := 0; i < endIndex; i++ {
 		if d.Nodes[i].IsDir() {
 			continue
 		}
-		if !PathExists(d.Nodes[i].FilePath) {
+		if !utils.FileExists(d.Nodes[i].FilePath) {
 			if appendMode {
 				continue
 			}
@@ -160,7 +175,7 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool) {
 			if appendMode {
 				dataSrc := make([]byte, d.Nodes[i].Length)
 				f.ReadAt(dataSrc, int64(d.Nodes[i].Offset))
-				if MD5(data) == MD5(dataSrc) {
+				if utils.MD5(data) == utils.MD5(dataSrc) {
 					if ShowLog {
 						fmt.Printf("文件未更改，跳过。%v\n", d.Nodes[i].FilePath)
 					}
@@ -175,7 +190,7 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool) {
 		d.Nodes[i].Offset = offset
 		d.Nodes[i].Length = len(data)
 		offset += len(data)
-		offset = AlignUp(offset, 2048)
+		offset = utils.AlignUp(offset, 2048)
 	}
 	// 字节对齐
 	out.Truncate(int64(offset))
@@ -187,7 +202,7 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool) {
 		}
 		d.Nodes[i].Offset = offset
 		offset += d.Nodes[i].Length
-		offset = AlignUp(offset, 2048)
+		offset = utils.AlignUp(offset, 2048)
 	}
 
 }
