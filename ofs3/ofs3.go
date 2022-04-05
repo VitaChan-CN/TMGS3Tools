@@ -93,8 +93,8 @@ func OpenOFS3(data []byte, dir string) *OFS3 {
 		for i := 0; i <= ofs3.Count; i++ {
 			if i == ofs3.Count {
 				ofs3.Files[i-1].Size = len(data) - ofs3.Files[i-1].Offset
-			} else {
-				ofs3.Files[i].Size = ofs3.Files[i+1].Offset - ofs3.Files[i].Offset
+			} else if i > 0 {
+				ofs3.Files[i-1].Size = ofs3.Files[i].Offset - ofs3.Files[i-1].Offset
 			}
 		}
 	}
