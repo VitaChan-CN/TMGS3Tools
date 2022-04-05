@@ -5,12 +5,14 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/go-restruct/restruct"
+	"io"
 	"os"
 	"path"
 )
 
 type DFI struct {
 	Count    int    `struct:"-"`
+	Size     int    `struct:"-"`
 	Magic    string `struct:"[4]byte"`
 	Unknown1 int    `struct:"int32"`
 	Unknown2 int    `struct:"int32"`
@@ -19,18 +21,25 @@ type DFI struct {
 }
 
 type Node struct {
-	IsDir     bool   `struct:"int16,variantbool"`
+	IsDirN    int    `struct:"int16"`
 	FileCount int    `struct:"int16"`
 	Unknown1  int    `struct:"int32"`
 	Offset    int    `struct:"int32"`
 	Length    int    `struct:"int32"`
 	FileName  string `struct:"-"`
+	FilePath  string `struct:"-"` // 完整路径
+}
+
+func (n *Node) IsDir() bool {
+	return n.IsDirN != 0
 }
 
 func LoadIdx(idxFile string) *DFI {
 	idx, _ := os.ReadFile(idxFile)
 	offset := 0x10
-	dfi := &DFI{}
+	dfi := &DFI{
+		Size: len(idx),
+	}
 	for offset+1 < len(idx) && idx[offset] <= 0x01 && idx[offset+1] == 0x00 {
 		dfi.Count++
 		offset += 0x10
@@ -57,32 +66,41 @@ func LoadIdx(idxFile string) *DFI {
 	return dfi
 }
 
-func (d *DFI) LoadImg(imgFile string, outputDir string) {
-	if !PathExists(outputDir) {
-		os.Mkdir(outputDir, os.ModePerm)
+func (d *DFI) SetDir(dir string, isInput bool) {
+	if !isInput && !PathExists(dir) {
+		// output
+		os.Mkdir(dir, os.ModePerm)
 	}
 	lastDir := ""
+	for i, node := range d.Nodes {
+		if node.IsDir() {
+			d.Nodes[i].FilePath = path.Join(dir, node.FileName)
+			lastDir = d.Nodes[i].FilePath
+		} else {
+			d.Nodes[i].FilePath = path.Join(lastDir, node.FileName)
+		}
+	}
+}
+
+func (d *DFI) LoadImg(imgFile string) {
+
 	f, _ := os.Open(imgFile)
+	defer f.Close()
 	info, _ := f.Stat()
 	size := info.Size()
 	for _, node := range d.Nodes {
-		if node.IsDir {
+		if node.IsDir() {
 			if ShowLog {
 				fmt.Printf("文件夹 %v\n", node)
 			}
-
-			filename := path.Join(outputDir, node.FileName)
-			if !PathExists(filename) {
-				os.Mkdir(filename, os.ModePerm)
+			if !PathExists(node.FilePath) {
+				os.Mkdir(node.FilePath, os.ModePerm)
 			}
-			lastDir = filename
 		} else if node.Offset+node.Length <= int(size) {
 			if ShowLog {
 				fmt.Printf("文件 %v\n", node)
 			}
-
-			filename := path.Join(lastDir, node.FileName)
-			tf, _ := os.Create(filename)
+			tf, _ := os.Create(node.FilePath)
 			data := make([]byte, node.Length)
 			f.ReadAt(data, int64(node.Offset))
 			tf.Write(data)
@@ -91,13 +109,97 @@ func (d *DFI) LoadImg(imgFile string, outputDir string) {
 			if ShowLog {
 				fmt.Printf("不在此文件中 %v\n", node)
 			}
-
 		}
 	}
 
-	f.Close()
+}
+
+func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool) {
+	f, _ := os.Open(imgFile)
+	defer f.Close()
+	info, _ := f.Stat()
+	size := info.Size()
+
+	out, _ := os.Create(outputFile)
+	defer out.Close()
+
+	endIndex := len(d.Nodes) // 因为要排除INSTALL中的数据，用于标记img最后一个文件的下标(不含)
+
+	for i, node := range d.Nodes {
+		if node.Offset+node.Length > int(size) {
+			endIndex = i
+			break
+		}
+	}
+
+	var data []byte
+	offset := 0
+	if appendMode {
+		if ShowLog {
+			fmt.Printf("追加模式，正在复制原文件...\n根据硬盘读写速度可能需要一段时间\n")
+		}
+		io.Copy(out, f)
+		offset = int(size)
+		offset = AlignUp(offset, 2048)
+	}
+	for i := 0; i < endIndex; i++ {
+		if d.Nodes[i].IsDir() {
+			continue
+		}
+		if !PathExists(d.Nodes[i].FilePath) {
+			if appendMode {
+				continue
+			}
+			if ShowLog {
+				fmt.Printf("文件不存在，将使用原数据。%v\n", d.Nodes[i].FilePath)
+			}
+			data = make([]byte, d.Nodes[i].Length)
+			f.ReadAt(data, int64(d.Nodes[i].Offset))
+		} else {
+			data, _ = os.ReadFile(d.Nodes[i].FilePath)
+			if appendMode {
+				dataSrc := make([]byte, d.Nodes[i].Length)
+				f.ReadAt(dataSrc, int64(d.Nodes[i].Offset))
+				if MD5(data) == MD5(dataSrc) {
+					if ShowLog {
+						fmt.Printf("文件未更改，跳过。%v\n", d.Nodes[i].FilePath)
+					}
+					continue
+				}
+			}
+			if ShowLog {
+				fmt.Printf("写入文件 %v\n", d.Nodes[i].FilePath)
+			}
+		}
+		out.WriteAt(data, int64(offset))
+		d.Nodes[i].Offset = offset
+		d.Nodes[i].Length = len(data)
+		offset += len(data)
+		offset = AlignUp(offset, 2048)
+	}
+	// 字节对齐
+	out.Truncate(int64(offset))
+
+	// INSTALL 偏移修改
+	for i := endIndex; i < len(d.Nodes); i++ {
+		d.Nodes[i].Offset = offset
+		offset += d.Nodes[i].Length
+		offset = AlignUp(offset, 2048)
+	}
 
 }
-func (d *DFI) ReBuildImg(imgFile string, inputDir string, outputFile string) {
+func (d *DFI) SaveIdx(outputFile string) {
+	for i, _ := range d.Nodes {
+		d.Nodes[i].Offset = d.Nodes[i].Offset / 2048
+	}
+	data, _ := restruct.Pack(binary.LittleEndian, d)
+	f, _ := os.Create(outputFile)
+	defer f.Close()
+	f.Write(data)
+	for _, node := range d.Nodes {
+		f.WriteString(node.FileName)
+		f.Write([]byte{0})
+	}
+	f.Truncate(int64(d.Size))
 
 }

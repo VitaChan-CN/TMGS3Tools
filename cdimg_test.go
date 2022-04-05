@@ -10,7 +10,7 @@ func TestLoadMes(t *testing.T) {
 	restruct.EnableExprBeta()
 	dfi := LoadIdx("data/01/a.idx")
 	for _, node := range dfi.Nodes {
-		if node.IsDir {
+		if node.IsDir() {
 			fmt.Printf("%v\n", node)
 		} else {
 			fmt.Printf("----%v\n", node)
@@ -22,7 +22,26 @@ func TestLoadMes(t *testing.T) {
 func TestLoadIdx(t *testing.T) {
 	restruct.EnableExprBeta()
 	dir := "data/01/"
-	dfi := LoadIdx(dir + "a.idx")
-	dfi.LoadImg(dir+"a.img", dir+"output")
+	inputIdx := dir + "a.out.idx"
+	inputImg := dir + "a.out.img"
+	dfi := LoadIdx(inputIdx)
+	dfi.SetDir(dir+"output", false)
+	dfi.LoadImg(inputImg)
 
+}
+
+func TestDFI_ReBuildImg(t *testing.T) {
+	restruct.EnableExprBeta()
+	dir := "data/01/"
+	inputIdx := dir + "a.idx"
+	inputImg := dir + "a.img"
+	outputIdx := dir + "a.out.idx"
+	outputImg := dir + "a.out.img"
+
+	dfi := LoadIdx(inputIdx)
+	dfi.SetDir(dir+"output", true)
+	dfi.ReBuildImg(inputImg, outputImg, true)
+	dfi.SaveIdx(outputIdx)
+	fmt.Printf("%v\n%v\n", MD5F(inputImg), MD5F(outputImg))
+	fmt.Printf("%v\n%v\n", MD5F(inputIdx), MD5F(outputIdx))
 }
