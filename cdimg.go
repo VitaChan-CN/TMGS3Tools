@@ -182,6 +182,9 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool) {
 
 	// INSTALL 偏移修改
 	for i := endIndex; i < len(d.Nodes); i++ {
+		if d.Nodes[i].IsDir() {
+			continue
+		}
 		d.Nodes[i].Offset = offset
 		offset += d.Nodes[i].Length
 		offset = AlignUp(offset, 2048)
