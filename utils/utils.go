@@ -9,6 +9,17 @@ import (
 	"os"
 )
 
+func PathExists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return false
+}
+
 func FileExists(path string) bool {
 	info, err := os.Stat(path)
 	if err == nil && !info.IsDir() {
@@ -57,4 +68,9 @@ func MD5F(fName string) string {
 
 func ReadUInt32(data []byte) int {
 	return int(binary.LittleEndian.Uint32(data))
+}
+func WriteUInt32(data int) []byte {
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, uint32(data))
+	return buf
 }

@@ -2,38 +2,48 @@
 
 《ときめきメモリアル Girls Side 3rd Story》相关工具  
 
-目前仅支持DFI(idx img)文件解包和打包，支持OFS3解包，暂不支持OFS3打包。  
-OFS3工具可以使用 [https://github.com/Liquid-S/OFS3-TOOL](https://github.com/Liquid-S/OFS3-TOOL)  
+目前仅支持DFI(idx img)文件解包和打包，支持OFS3解包与打包。  
 
 具体使用方法参见**Example**  
 
 ## Usage
+DFI即idx文件，需要与之对应的img文件  
+开启日志`-log`和`-ofs3.log`会影响性能，默认**关闭**所有日志  
+无论解包还是打包，均需要**对应的原文件**  
 ```shell
   -append
         [打包]追加写入模式，待测试
+  -dfi.ofs3
+        [DFI解包]递归解包所有OFS3格式文件
   -i string
-        [打包.必要]输入文件夹路径；[OFS3解包]输入OFS3文件名
+        [打包]输入文件夹路径
   -idx string
-        [必要]cdimg.idx文件名
+        [DFI必要]cdimg.idx文件名
   -img string
-        [必要]cdimg.idx文件名
+        [DFI必要]cdimg.idx文件名
   -log
-        显示日志 (default true)
+        显示日志
   -o string
-        [解包]输出文件夹路径；[打包]输出文件名
-  -ofs3
-        [解包]递归解包所有OFS3格式文件，无法打包
+        [解包]输出文件夹路径, [打包]输出文件名
+  -ofs3 string
+        [OFS3必要] OFS3文件名
   -ofs3.log
         显示OFS3日志
+
 
 ```
 
 ## Example
 ```shell
-# OFS3单独解包
-TMGS3Tools -i=data/ofs3/005.bin \
+# OFS3单独解包，输出到data/ofs3/output，开启日志
+TMGS3Tools -ofs3=data/ofs3/005.bin \
            -o=data/ofs3/output \
-           -ofs3 -ofs3log
+           -ofs3.log
+           
+# OFS3单独打包，输出到data/ofs3/005.out.bin，开启日志
+TMGS3Tools -ofs3=data/ofs3/005.bin \
+           -i=data/ofs3/output \
+           -o=data/ofs3/005.out.bin # -ofs3.log
 
 # 解包，输出到data/01/output文件夹中
 TMGS3Tools -idx=data/01/a.idx \
@@ -44,7 +54,7 @@ TMGS3Tools -idx=data/01/a.idx \
 TMGS3Tools -idx=data/01/a.idx \
            -img=data/01/a.img \
            -o=data/01/output \
-           -ofs3 # -ofs3log
+           -dfi.ofs3 # -ofs3.log
 
 # 打包 普通模式，输出文件名为data/01/a.out.idx和data/01/a.out.img
 TMGS3Tools -idx=data/01/a.idx \
@@ -61,9 +71,12 @@ TMGS3Tools -idx=data/01/a.idx \
 
 ```
 ## 未来
-- 支持OFS3打包
+- 支持顺便解压与压缩gz文件
 
 ## 更新日志
+
+### 2022-4-6
+- 支持OFS3格式文件递归打包
 
 ### 2022-4-5 3
 - 支持OFS3格式文件递归解包
@@ -77,3 +90,7 @@ TMGS3Tools -idx=data/01/a.idx \
 
 ### 2022-3-26
 - DFI(idx img)文件提取，仅GS3 cdimg0文件
+
+## 参考
+
+- OFS3-TOOL [https://github.com/Liquid-S/OFS3-TOOL](https://github.com/Liquid-S/OFS3-TOOL)  
