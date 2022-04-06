@@ -17,7 +17,7 @@ type DFI struct {
 	Size     int    `struct:"-"`
 	Magic    string `struct:"[4]byte"`
 	Unknown1 int    `struct:"int32"`
-	Unknown2 int    `struct:"int32"`
+	ImgSize  int    `struct:"int32"`
 	Unknown3 int    `struct:"int32"`
 	Nodes    []Node `struct:"size=Count"`
 }
@@ -195,6 +195,7 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool) {
 	// 字节对齐
 	out.Truncate(int64(offset))
 
+	d.ImgSize = offset / 2048
 	// INSTALL 偏移修改
 	for i := endIndex; i < len(d.Nodes); i++ {
 		if d.Nodes[i].IsDir() {
