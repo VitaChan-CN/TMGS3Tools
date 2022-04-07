@@ -84,7 +84,7 @@ func (d *DFI) SetDir(dir string, isInput bool) {
 	}
 }
 
-func (d *DFI) LoadImg(imgFile string, openOfs3 bool) {
+func (d *DFI) LoadImg(imgFile string, openOfs3 bool, gz bool) {
 
 	f, _ := os.Open(imgFile)
 	defer f.Close()
@@ -108,6 +108,7 @@ func (d *DFI) LoadImg(imgFile string, openOfs3 bool) {
 					fmt.Printf("OFS3文件 %v\n", node)
 				}
 				ofs := ofs3.OpenOFS3(data, node.FilePath)
+				ofs.WriteFile(data, node.FilePath, gz)
 				if ShowLog {
 					fmt.Printf("\t %v\n", ofs.Header)
 				}

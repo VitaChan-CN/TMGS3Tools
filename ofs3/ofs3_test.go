@@ -28,7 +28,7 @@ func TestOpenOFS3(t *testing.T) {
 	fmt.Println("App elapsed: ", elapsed)
 	fmt.Println("==========开始写出数据==========")
 	t1 = time.Now()
-	ofs.WriteFile(data, outputDir)
+	ofs.WriteFile(data, outputDir, true)
 	elapsed = time.Since(t1)
 	fmt.Println("App elapsed: ", elapsed)
 	fmt.Println(ofs)
@@ -55,7 +55,7 @@ func TestOFS3_ReBuild(t *testing.T) {
 	fmt.Println("==========开始写出数据==========")
 	t1 = time.Now()
 
-	ofs.ReBuild(data, output)
+	ofs.ReBuild(data, output, true)
 	elapsed = time.Since(t1)
 	fmt.Println("App elapsed: ", elapsed)
 

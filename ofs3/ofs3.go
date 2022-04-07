@@ -137,7 +137,7 @@ func OpenOFS3(data []byte, dir string) *OFS3 {
 //  Param data []byte 原文件数据
 //  Param dir string 所在目录，会创建文件夹
 //
-func (ofs3 *OFS3) WriteFile(data []byte, dir string) {
+func (ofs3 *OFS3) WriteFile(data []byte, dir string, gz bool) {
 	var err error
 	if !utils.DirExists(dir) {
 		err = os.Mkdir(dir, os.ModePerm)
@@ -151,9 +151,12 @@ func (ofs3 *OFS3) WriteFile(data []byte, dir string) {
 		subData := data[file.Offset : file.Offset+file.Size]
 		if file.OFS3 != nil {
 			// 子文件为OFS3，递归读取
-			file.WriteFile(subData, file.FilePath)
+			file.WriteFile(subData, file.FilePath, gz)
 		} else {
 			// 非OFS3，一般文件
+			if gz {
+				subData, file.FilePath = Decode(subData, file.FilePath)
+			}
 			err = os.WriteFile(file.FilePath, subData, os.ModePerm)
 			if err != nil {
 				fmt.Printf("Error 写入[%v]文件失败！%v\n", file.FilePath, err)
@@ -168,15 +171,15 @@ func (ofs3 *OFS3) WriteFile(data []byte, dir string) {
 //  Param data []byte 原ofs3数据
 //  Param output string
 //
-func (ofs3 *OFS3) ReBuild(data []byte, output string) {
-	result := ofs3.createOFS3(data)
+func (ofs3 *OFS3) ReBuild(data []byte, output string, gz bool) {
+	result := ofs3.createOFS3(data, gz)
 	err := os.WriteFile(output, result, os.ModePerm)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (ofs3 *OFS3) createOFS3(srcData []byte) []byte {
+func (ofs3 *OFS3) createOFS3(srcData []byte, gz bool) []byte {
 
 	// Header 数据，共0x14
 	headerData, err := restruct.Pack(binary.LittleEndian, &ofs3.Header)
@@ -211,7 +214,7 @@ func (ofs3 *OFS3) createOFS3(srcData []byte) []byte {
 		if file.OFS3 != nil {
 			// 递归写入ofs3数据
 			subData := srcData[file.Offset : file.Offset+file.Size]
-			subFileData = file.OFS3.createOFS3(subData)
+			subFileData = file.OFS3.createOFS3(subData, gz)
 		} else {
 			subFileData, err = os.ReadFile(file.FilePath)
 			if err != nil {
@@ -220,6 +223,9 @@ func (ofs3 *OFS3) createOFS3(srcData []byte) []byte {
 				}
 				// 截取原数据
 				subFileData = srcData[file.Offset : file.Offset+file.Size]
+			}
+			if gz {
+				subFileData, file.FilePath = Encode(subFileData, file.FilePath)
 			}
 		}
 		fileData.Write(subFileData)

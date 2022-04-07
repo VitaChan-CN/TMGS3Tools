@@ -27,7 +27,7 @@ func TestLoadIdx(t *testing.T) {
 	inputImg := dir + "a.out.img"
 	dfi := LoadIdx(inputIdx)
 	dfi.SetDir(dir+"output", false)
-	dfi.LoadImg(inputImg, false)
+	dfi.LoadImg(inputImg, false, false)
 
 }
 
