@@ -24,7 +24,7 @@ func main() {
 	flag.BoolVar(&log, "log", false, "显示日志")
 	flag.BoolVar(&ofs3Mode, "dfi.ofs3", false, "[DFI解包]递归解包所有OFS3格式文件")
 	flag.BoolVar(&ofs3log, "ofs3.log", false, "显示OFS3日志")
-	flag.BoolVar(&gz, "gz", true, "解包打包是否自动解压、压缩gz文件(.dgz)")
+	flag.BoolVar(&gz, "gz", false, "解包时是否自动解压gz文件(解压后为.dgz文件，导入需要手动压缩并去掉后缀)")
 
 	flag.Parse()
 	restruct.EnableExprBeta()

@@ -116,6 +116,10 @@ func (d *DFI) LoadImg(imgFile string, openOfs3 bool, gz bool) {
 				if ShowLog {
 					fmt.Printf("文件 %v\n", node)
 				}
+				if gz {
+					data = ofs3.Decode(data)
+					node.FilePath = ofs3.DecodeName(data, node.FilePath)
+				}
 				tf, _ := os.Create(node.FilePath)
 				tf.Write(data)
 				tf.Close()

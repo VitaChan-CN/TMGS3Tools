@@ -155,7 +155,8 @@ func (ofs3 *OFS3) WriteFile(data []byte, dir string, gz bool) {
 		} else {
 			// 非OFS3，一般文件
 			if gz {
-				subData, file.FilePath = Decode(subData, file.FilePath)
+				subData = Decode(subData)
+				file.FilePath = DecodeName(data, file.FilePath)
 			}
 			err = os.WriteFile(file.FilePath, subData, os.ModePerm)
 			if err != nil {
@@ -172,14 +173,14 @@ func (ofs3 *OFS3) WriteFile(data []byte, dir string, gz bool) {
 //  Param output string
 //
 func (ofs3 *OFS3) ReBuild(data []byte, output string, gz bool) {
-	result := ofs3.createOFS3(data, gz)
+	result := ofs3.createOFS3(data)
 	err := os.WriteFile(output, result, os.ModePerm)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (ofs3 *OFS3) createOFS3(srcData []byte, gz bool) []byte {
+func (ofs3 *OFS3) createOFS3(srcData []byte) []byte {
 
 	// Header 数据，共0x14
 	headerData, err := restruct.Pack(binary.LittleEndian, &ofs3.Header)
@@ -214,7 +215,7 @@ func (ofs3 *OFS3) createOFS3(srcData []byte, gz bool) []byte {
 		if file.OFS3 != nil {
 			// 递归写入ofs3数据
 			subData := srcData[file.Offset : file.Offset+file.Size]
-			subFileData = file.OFS3.createOFS3(subData, gz)
+			subFileData = file.OFS3.createOFS3(subData)
 		} else {
 			subFileData, err = os.ReadFile(file.FilePath)
 			if err != nil {
@@ -223,9 +224,6 @@ func (ofs3 *OFS3) createOFS3(srcData []byte, gz bool) []byte {
 				}
 				// 截取原数据
 				subFileData = srcData[file.Offset : file.Offset+file.Size]
-			}
-			if gz {
-				subFileData, file.FilePath = Encode(subFileData, file.FilePath)
 			}
 		}
 		fileData.Write(subFileData)

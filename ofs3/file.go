@@ -4,37 +4,53 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"path"
 	"strings"
 )
 
-func Decode(data []byte, filename string) ([]byte, string) {
+func DecodeName(data []byte, filename string) string {
+	switch binary.BigEndian.Uint32(data[0:4]) {
+	case 0x1F8B0808:
+		return filename + ".dgz"
+	default:
+		return filename
+	}
+}
+
+func Decode(data []byte) []byte {
 	var result []byte
 	switch binary.BigEndian.Uint32(data[0:4]) {
 	case 0x1F8B0808:
-		gz, err := gzip.NewReader(bytes.NewReader(data))
+		b := bytes.NewBuffer(data)
+		gz, err := gzip.NewReader(b)
+		fmt.Println(gz.Header)
+
 		if err != nil {
-			return data, filename
+			fmt.Println(err)
+			return data
 		}
 		result, err = io.ReadAll(gz)
 		if err != nil {
-			return data, filename
+			fmt.Println(err)
+			return data
 		}
-		filename += ".dgz"
+		fmt.Println(2222, len(result))
 	default:
 		result = data
 	}
-	return result, filename
+	return result
 }
 func Encode(data []byte, filename string) ([]byte, string) {
 
-	var result []byte
 	ext := path.Ext(filename)
+	fmt.Println(filename, ext)
 	switch ext {
 	case ".dgz":
-		b := bytes.NewBuffer(data)
+		b := bytes.NewBuffer(nil)
 		gz := gzip.NewWriter(b)
+		gz.Header.OS = 11
 		_, err := gz.Write(data)
 		if err != nil {
 			return data, filename
@@ -43,10 +59,10 @@ func Encode(data []byte, filename string) ([]byte, string) {
 		if err != nil {
 			return data, filename
 		}
-		result = b.Bytes()
 		filename = strings.TrimSuffix(filename, ext)
+		return b.Bytes(), filename
 	default:
-		result = data
+		return data, filename
 	}
-	return result, filename
+
 }

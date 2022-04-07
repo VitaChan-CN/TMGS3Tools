@@ -16,7 +16,7 @@ DFI即idx文件，需要与之对应的img文件
   -dfi.ofs3
         [DFI解包]递归解包所有OFS3格式文件
   -gz
-        解包打包是否自动解压、压缩gz文件(.dgz) (default true)
+        解包时是否自动解压gz文件(解压后为.dgz文件，导入需要手动压缩并去掉后缀)
   -i string
         [打包]输入文件夹路径
   -idx string
@@ -31,7 +31,6 @@ DFI即idx文件，需要与之对应的img文件
         [OFS3必要] OFS3文件名
   -ofs3.log
         显示OFS3日志
-
 
 ```
 
