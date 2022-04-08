@@ -41,7 +41,7 @@ func TestDFI_ReBuildImg(t *testing.T) {
 
 	dfi := LoadIdx(inputIdx)
 	dfi.SetDir(dir+"output", true)
-	dfi.ReBuildImg(inputImg, outputImg, true)
+	dfi.ReBuildImg(inputImg, outputImg, true, 9525248)
 	dfi.SaveIdx(outputIdx)
 	fmt.Printf("%v\n%v\n", utils.MD5F(inputImg), utils.MD5F(outputImg))
 	fmt.Printf("%v\n%v\n", utils.MD5F(inputIdx), utils.MD5F(outputIdx))

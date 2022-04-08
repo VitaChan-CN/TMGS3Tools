@@ -134,13 +134,22 @@ func (d *DFI) LoadImg(imgFile string, openOfs3 bool, gz bool) {
 
 }
 
-func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool) {
+func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool, patchOffset int) {
 	f, _ := os.Open(imgFile)
 	defer f.Close()
 	info, _ := f.Stat()
 	size := info.Size()
 
-	out, _ := os.Create(outputFile)
+	var out *os.File
+	patch := false
+	if patchOffset > 0 && appendMode && utils.FileExists(outputFile) {
+		// 对output的指定位置进行打补丁
+		out, _ = os.OpenFile(outputFile, os.O_RDWR, os.ModePerm)
+		patch = true
+	} else {
+		out, _ = os.Create(outputFile)
+	}
+
 	defer out.Close()
 
 	endIndex := len(d.Nodes) // 因为要排除INSTALL中的数据，用于标记img最后一个文件的下标(不含)
@@ -155,12 +164,18 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool) {
 	var data []byte
 	offset := 0
 	if appendMode {
-		if ShowLog {
-			fmt.Printf("追加模式，正在复制原文件...\n根据硬盘读写速度可能需要一段时间\n")
+		if patch {
+			offset = patchOffset
+			fmt.Println(offset)
+		} else {
+			if ShowLog {
+				fmt.Printf("追加模式，正在复制原文件...\n根据硬盘读写速度可能需要一段时间\n")
+			}
+			io.Copy(out, f)
+			offset = int(size)
+			offset = utils.AlignUp(offset, 2048)
 		}
-		io.Copy(out, f)
-		offset = int(size)
-		offset = utils.AlignUp(offset, 2048)
+
 	}
 	for i := 0; i < endIndex; i++ {
 		if d.Nodes[i].IsDir() {
@@ -191,7 +206,8 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool) {
 				fmt.Printf("写入文件 %v\n", d.Nodes[i].FilePath)
 			}
 		}
-		out.WriteAt(data, int64(offset))
+		n, err := out.WriteAt(data, int64(offset))
+		fmt.Println(n, err)
 		d.Nodes[i].Offset = offset
 		d.Nodes[i].Length = len(data)
 		offset += len(data)
