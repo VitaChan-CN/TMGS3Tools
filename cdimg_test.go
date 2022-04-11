@@ -27,11 +27,11 @@ func TestLoadIdx(t *testing.T) {
 	inputImg := dir + "a.out.img"
 	dfi := LoadIdx(inputIdx)
 	dfi.SetDir(dir+"output", false)
-	dfi.LoadImg(inputImg, false, false)
+	dfi.LoadImg(inputImg, "", false, false)
 
 }
 
-func TestDFI_ReBuildImg(t *testing.T) {
+func TestDFI_ReBuildImg1(t *testing.T) {
 	restruct.EnableExprBeta()
 	dir := "data/01/"
 	inputIdx := dir + "a.idx"
@@ -41,8 +41,39 @@ func TestDFI_ReBuildImg(t *testing.T) {
 
 	dfi := LoadIdx(inputIdx)
 	dfi.SetDir(dir+"output", true)
-	dfi.ReBuildImg(inputImg, outputImg, true, 9525248)
+	dfi.ReBuildImg(inputImg, outputImg, "", true, 9525248)
 	dfi.SaveIdx(outputIdx)
 	fmt.Printf("%v\n%v\n", utils.MD5F(inputImg), utils.MD5F(outputImg))
 	fmt.Printf("%v\n%v\n", utils.MD5F(inputIdx), utils.MD5F(outputIdx))
+}
+
+func TestDFI_LoadImg(t *testing.T) {
+	restruct.EnableExprBeta()
+	dir := "data/"
+	inputIdx := dir + "_cdimg.idx"
+	inputImg := dir + "_cdimg0.img"
+	inputInstall := dir + "out_INSTALL.DAT"
+	outputDir := dir + "output"
+
+	ShowLog = false
+	dfi := LoadIdx(inputIdx)
+	dfi.SetDir(outputDir, false)
+	dfi.LoadImg(inputImg, inputInstall, false, false)
+}
+
+func TestDFI_ReBuildImg(t *testing.T) {
+	restruct.EnableExprBeta()
+	dir := "data/"
+	inputIdx := dir + "cdimg.idx"
+	inputImg := dir + "cdimg0.img"
+	inputInstall := dir + "INSTALL.DAT"
+	inputDir := dir + "output"
+	outputImg := dir + "_cdimg0.img"
+	outputIdx := dir + "_cdimg.idx"
+
+	ShowLog = false
+	dfi := LoadIdx(inputIdx)
+	dfi.SetDir(inputDir, true)
+	dfi.ReBuildImg(inputImg, outputImg, inputInstall, false, 0)
+	dfi.SaveIdx(outputIdx)
 }

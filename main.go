@@ -13,10 +13,11 @@ var ShowLog = true
 func main() {
 	fmt.Println("WeTor wetorx@qq.com")
 	var idxFile, imgFile, inputDir, output, output2 string
-	var ofs3File string
+	var ofs3File, installFile string
 	var inputAppend, log, ofs3log, ofs3Mode, gz bool
 	flag.StringVar(&idxFile, "idx", "", "[DFI必要]cdimg.idx文件名")
 	flag.StringVar(&imgFile, "img", "", "[DFI必要]cdimg.idx文件名")
+	flag.StringVar(&installFile, "install", "", "[DFI]解密后的INSTALL.DAT文件，启用此项，将会无法使用append和patch")
 	flag.StringVar(&ofs3File, "ofs3", "", "[OFS3必要] OFS3文件名")
 	flag.StringVar(&inputDir, "i", "", "[打包]输入文件夹路径")
 	flag.StringVar(&output, "o", "", "[解包]输出文件夹路径, [打包]输出文件名")
@@ -60,7 +61,7 @@ func main() {
 			return
 		}
 		dfi.SetDir(inputDir, true)
-		dfi.ReBuildImg(imgFile, output, inputAppend, patchOffset)
+		dfi.ReBuildImg(imgFile, output, installFile, inputAppend, patchOffset)
 		idxName := output + ".idx"
 		if len(output2) > 0 {
 			idxName = output2
@@ -73,7 +74,7 @@ func main() {
 			return
 		}
 		dfi.SetDir(output, false)
-		dfi.LoadImg(imgFile, ofs3Mode, gz)
+		dfi.LoadImg(imgFile, installFile, ofs3Mode, gz)
 	}
 
 }

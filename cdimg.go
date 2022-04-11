@@ -53,6 +53,7 @@ func LoadIdx(idxFile string) *DFI {
 	if err != nil {
 		panic(err)
 	}
+	dfi.ImgSize *= 2048
 	offset = 0x10 + dfi.Count*0x10
 	str := bytes.NewBuffer(nil)
 	for i, _ := range dfi.Nodes {
@@ -84,10 +85,15 @@ func (d *DFI) SetDir(dir string, isInput bool) {
 	}
 }
 
-func (d *DFI) LoadImg(imgFile string, openOfs3 bool, gz bool) {
+func (d *DFI) LoadImg(imgFile, installFile string, openOfs3 bool, gz bool) {
 
-	f, _ := os.Open(imgFile)
+	var f, f2 *os.File
+	f, _ = os.Open(imgFile)
 	defer f.Close()
+	if len(installFile) > 0 {
+		f2, _ = os.Open(installFile)
+		defer f2.Close()
+	}
 	info, _ := f.Stat()
 	size := info.Size()
 	for _, node := range d.Nodes {
@@ -98,10 +104,14 @@ func (d *DFI) LoadImg(imgFile string, openOfs3 bool, gz bool) {
 			if !utils.DirExists(node.FilePath) {
 				os.Mkdir(node.FilePath, os.ModePerm)
 			}
-		} else if node.Offset+node.Length <= int(size) {
+		} else if node.Offset+node.Length <= int(size) || len(installFile) > 0 {
 
 			data := make([]byte, node.Length)
-			f.ReadAt(data, int64(node.Offset))
+			if node.Offset+node.Length <= int(size) {
+				f.ReadAt(data, int64(node.Offset))
+			} else {
+				f2.ReadAt(data, int64(node.Offset)-size)
+			}
 
 			if openOfs3 && len(data) > 4 && string(data[0:4]) == "OFS3" {
 				if ShowLog {
@@ -134,13 +144,22 @@ func (d *DFI) LoadImg(imgFile string, openOfs3 bool, gz bool) {
 
 }
 
-func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool, patchOffset int) {
-	f, _ := os.Open(imgFile)
+func (d *DFI) ReBuildImg(imgFile, outputFile, installFile string, appendMode bool, patchOffset int) {
+	var f, f2 *os.File
+	var out, out2 *os.File
+	f, _ = os.Open(imgFile)
 	defer f.Close()
+	if len(installFile) > 0 {
+		f2, _ = os.Open(installFile)
+		defer f2.Close()
+		out2, _ = os.Create(path.Join(path.Dir(outputFile), "out_INSTALL.DAT"))
+		defer out2.Close()
+		appendMode = false
+		patchOffset = 0
+	}
 	info, _ := f.Stat()
 	size := info.Size()
 
-	var out *os.File
 	patch := false
 	if patchOffset > 0 && appendMode && utils.FileExists(outputFile) {
 		// 对output的指定位置进行打补丁
@@ -152,11 +171,17 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool, patchOffse
 
 	defer out.Close()
 
-	endIndex := len(d.Nodes) // 因为要排除INSTALL中的数据，用于标记img最后一个文件的下标(不含)
-
+	endIndex := len(d.Nodes)
+	installIndex := endIndex
+	// 排除INSTALL中的数据，用于标记img最后一个文件的下标(不含)
 	for i, node := range d.Nodes {
 		if node.Offset+node.Length > int(size) {
-			endIndex = i
+			if len(installFile) == 0 {
+				endIndex = i
+			} else {
+				installIndex = i
+			}
+
 			break
 		}
 	}
@@ -177,9 +202,14 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool, patchOffse
 		}
 
 	}
+	install := false
 	for i := 0; i < endIndex; i++ {
 		if d.Nodes[i].IsDir() {
 			continue
+		}
+		if i == installIndex {
+			install = true
+			d.ImgSize = offset
 		}
 		if !utils.FileExists(d.Nodes[i].FilePath) {
 			if appendMode {
@@ -189,12 +219,21 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool, patchOffse
 				fmt.Printf("文件不存在，将使用原数据。%v\n", d.Nodes[i].FilePath)
 			}
 			data = make([]byte, d.Nodes[i].Length)
-			f.ReadAt(data, int64(d.Nodes[i].Offset))
+			if !install {
+				f.ReadAt(data, int64(d.Nodes[i].Offset))
+			} else {
+				f2.ReadAt(data, int64(d.Nodes[i].Offset)-size)
+			}
+
 		} else {
 			data, _ = os.ReadFile(d.Nodes[i].FilePath)
 			if appendMode {
 				dataSrc := make([]byte, d.Nodes[i].Length)
-				f.ReadAt(dataSrc, int64(d.Nodes[i].Offset))
+				if !install {
+					f.ReadAt(dataSrc, int64(d.Nodes[i].Offset))
+				} else {
+					f2.ReadAt(dataSrc, int64(d.Nodes[i].Offset))
+				}
 				if utils.MD5(data) == utils.MD5(dataSrc) {
 					if ShowLog {
 						fmt.Printf("文件未更改，跳过。%v\n", d.Nodes[i].FilePath)
@@ -206,26 +245,33 @@ func (d *DFI) ReBuildImg(imgFile, outputFile string, appendMode bool, patchOffse
 				fmt.Printf("写入文件 %v\n", d.Nodes[i].FilePath)
 			}
 		}
-		n, err := out.WriteAt(data, int64(offset))
-		fmt.Println(n, err)
+		if !install {
+			out.WriteAt(data, int64(offset))
+		} else {
+			// install
+			out2.WriteAt(data, int64(offset-d.ImgSize))
+		}
+
 		d.Nodes[i].Offset = offset
 		d.Nodes[i].Length = len(data)
 		offset += len(data)
 		offset = utils.AlignUp(offset, 2048)
 	}
 	// 字节对齐
-	out.Truncate(int64(offset))
-
-	d.ImgSize = offset / 2048
-	// INSTALL 偏移修改
-	for i := endIndex; i < len(d.Nodes); i++ {
-		if d.Nodes[i].IsDir() {
-			continue
+	out.Truncate(int64(d.ImgSize))
+	out2.Truncate(int64(offset - d.ImgSize))
+	if !install {
+		// INSTALL 偏移修改
+		for i := endIndex; i < len(d.Nodes); i++ {
+			if d.Nodes[i].IsDir() {
+				continue
+			}
+			d.Nodes[i].Offset = offset
+			offset += d.Nodes[i].Length
+			offset = utils.AlignUp(offset, 2048)
 		}
-		d.Nodes[i].Offset = offset
-		offset += d.Nodes[i].Length
-		offset = utils.AlignUp(offset, 2048)
 	}
+	d.ImgSize /= 2048
 
 }
 func (d *DFI) SaveIdx(outputFile string) {

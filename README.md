@@ -23,6 +23,8 @@ DFI即idx文件，需要与之对应的img文件
         [DFI必要]cdimg.idx文件名
   -img string
         [DFI必要]cdimg.idx文件名
+  -install string
+        [DFI]解密后的INSTALL.DAT文件，启用此项，将会无法使用append和patch
   -log
         显示日志
   -o string
@@ -40,6 +42,21 @@ DFI即idx文件，需要与之对应的img文件
 
 ## Example
 ```shell
+# 4.11 协同解密后的INSTALL.DAT进行解包（不支持append与patch）
+TMGS3Tools -idx=data/cdimg.idx \
+           -img=data/cdimg0.img \
+           -install=data/INSTALL.DAT \
+           -o=data/output 
+           
+# 4.11 协同解密后的INSTALL.DAT进行打包，输出修改后的idx、img与DAT（不支持append与patch）
+# 默认输出的DAT文件名为out_INSTALL.DAT
+TMGS3Tools -idx=data/cdimg.idx \
+           -img=data/cdimg0.img \
+           -install=data/INSTALL.DAT \
+           -i=data/output \
+           -o=data/_cdimg0.img \
+           -o2=data/_cdimg.idx
+
 # 打包 追加模式，打补丁模式。输出文件名为data/01/a.out.idx和data/01/a.out.img
 # 此模式的 -o 可以是使用append后的img文件
 # 1072887808 为原cdimg0.img大小
@@ -89,6 +106,9 @@ TMGS3Tools -idx=data/01/a.idx \
 ## 未来
 
 ## 更新日志
+
+### 2022-4-11
+- 支持解密的INSTALL.DAT协同解包打包（不支持append与patch）
 
 ### 2022-4-8
 - 支持patch模式
