@@ -21,10 +21,16 @@ DFI即idx文件，需要与之对应的img文件
         [打包]输入文件夹路径
   -idx string
         [DFI必要]cdimg.idx文件名
+  -idx2 string
+        [对比]cdimg.idx文件名
   -img string
         [DFI必要]cdimg.idx文件名
+  -img2 string
+        [对比]cdimg.idx文件名
   -install string
         [DFI]解密后的INSTALL.DAT文件，启用此项，将会无法使用append和patch
+  -install2 string
+        [对比]解密后的INSTALL.DAT文件
   -log
         显示日志
   -o string
@@ -42,6 +48,15 @@ DFI即idx文件，需要与之对应的img文件
 
 ## Example
 ```shell
+# 4.18 对比idx、img、INSTALL.DAT（解密后的）
+TMGS3Tools -idx=data/cdimg.idx \
+           -img=data/cdimg0.img \
+           -install=data/INSTALL.DAT \
+           -idx2=data/_cdimg.idx \
+           -img2=data/_cdimg0.img \
+           -install2=data/out_INSTALL.DAT
+
+
 # 4.11 协同解密后的INSTALL.DAT进行解包（不支持append与patch）
 TMGS3Tools -idx=data/cdimg.idx \
            -img=data/cdimg0.img \
@@ -106,6 +121,9 @@ TMGS3Tools -idx=data/01/a.idx \
 ## 未来
 
 ## 更新日志
+
+### 2022-4-18
+- 增加对比功能
 
 ### 2022-4-11
 - 支持解密的INSTALL.DAT协同解包打包（不支持append与patch）
