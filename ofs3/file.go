@@ -6,63 +6,67 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"path"
-	"strings"
 )
 
-func DecodeName(data []byte, filename string) string {
-	switch binary.BigEndian.Uint32(data[0:4]) {
-	case 0x1F8B0808:
-		return filename + ".dgz"
-	default:
-		return filename
+type FileType uint8
+
+const (
+	FILE_OTHER FileType = iota
+	FILE_OFS3
+	FILE_GZ
+)
+
+func GetFileType(data []byte) FileType {
+	v1 := binary.BigEndian.Uint16(data[0:2])
+	v2 := binary.BigEndian.Uint16(data[2:4])
+	if v1 == 0x1F8B {
+		return FILE_GZ
+	} else if v1 == 0x4F46 && v2 == 0x5333 { //OFS3
+		return FILE_OFS3
+	} else {
+		return FILE_OTHER
 	}
 }
 
-func Decode(data []byte) []byte {
+func GzDecode(data []byte, onlyHeader bool) ([]byte, *gzip.Header) {
 	var result []byte
-	switch binary.BigEndian.Uint32(data[0:4]) {
-	case 0x1F8B0808:
-		b := bytes.NewBuffer(data)
-		gz, err := gzip.NewReader(b)
-		fmt.Println(gz.Header)
-
-		if err != nil {
-			fmt.Println(err)
-			return data
-		}
-		result, err = io.ReadAll(gz)
-		if err != nil {
-			fmt.Println(err)
-			return data
-		}
-		fmt.Println(2222, len(result))
-	default:
-		result = data
+	var header *gzip.Header
+	b := bytes.NewBuffer(data)
+	gz, err := gzip.NewReader(b)
+	if err != nil {
+		fmt.Println(err)
+		return data, nil
 	}
-	return result
+	defer gz.Close()
+	header = &gz.Header
+	if onlyHeader {
+		return nil, header
+	}
+
+	result, err = io.ReadAll(gz)
+	if err != nil {
+		fmt.Println(err)
+		return data, nil
+	}
+	return result, header
 }
-func Encode(data []byte, filename string) ([]byte, string) {
-
-	ext := path.Ext(filename)
-	fmt.Println(filename, ext)
-	switch ext {
-	case ".dgz":
-		b := bytes.NewBuffer(nil)
-		gz := gzip.NewWriter(b)
-		gz.Header.OS = 11
-		_, err := gz.Write(data)
-		if err != nil {
-			return data, filename
-		}
-		err = gz.Flush()
-		if err != nil {
-			return data, filename
-		}
-		filename = strings.TrimSuffix(filename, ext)
-		return b.Bytes(), filename
-	default:
-		return data, filename
+func GzEncode(data []byte, header *gzip.Header) []byte {
+	b := bytes.NewBuffer(nil)
+	gz, err := gzip.NewWriterLevel(b, 9)
+	if err != nil {
+		fmt.Println(err)
+	}
+	gz.Header = *header
+	_, err = gz.Write(data)
+	if err != nil {
+		fmt.Println(err)
+		return data
+	}
+	err = gz.Close()
+	if err != nil {
+		fmt.Println(err)
+		return data
 	}
 
+	return b.Bytes()
 }

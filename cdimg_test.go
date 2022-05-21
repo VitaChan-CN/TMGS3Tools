@@ -41,7 +41,7 @@ func TestDFI_ReBuildImg1(t *testing.T) {
 
 	dfi := LoadIdx(inputIdx)
 	dfi.SetDir(dir+"output", true)
-	dfi.ReBuildImg(inputImg, outputImg, "", true, 9525248)
+	dfi.ReBuildImg(inputImg, outputImg, "", false, true, 9525248)
 	dfi.SaveIdx(outputIdx)
 	fmt.Printf("%v\n%v\n", utils.MD5F(inputImg), utils.MD5F(outputImg))
 	fmt.Printf("%v\n%v\n", utils.MD5F(inputIdx), utils.MD5F(outputIdx))
@@ -50,15 +50,16 @@ func TestDFI_ReBuildImg1(t *testing.T) {
 func TestDFI_LoadImg(t *testing.T) {
 	restruct.EnableExprBeta()
 	dir := "data/"
-	inputIdx := dir + "_cdimg.idx"
-	inputImg := dir + "_cdimg0.img"
-	inputInstall := dir + "out_INSTALL.DAT"
+	inputIdx := dir + "cdimg.idx"
+	inputImg := dir + "cdimg0.img"
+	inputInstall := dir + "INSTALL.DAT"
 	outputDir := dir + "output"
 
 	ShowLog = false
+	//ofs3.ShowLog = false
 	dfi := LoadIdx(inputIdx)
 	dfi.SetDir(outputDir, false)
-	dfi.LoadImg(inputImg, inputInstall, false, false)
+	dfi.LoadImg(inputImg, inputInstall, false, true)
 }
 
 func TestDFI_ReBuildImg(t *testing.T) {
@@ -74,6 +75,6 @@ func TestDFI_ReBuildImg(t *testing.T) {
 	ShowLog = false
 	dfi := LoadIdx(inputIdx)
 	dfi.SetDir(inputDir, true)
-	dfi.ReBuildImg(inputImg, outputImg, inputInstall, false, 0)
+	dfi.ReBuildImg(inputImg, outputImg, inputInstall, true, false, 0)
 	dfi.SaveIdx(outputIdx)
 }

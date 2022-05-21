@@ -2,21 +2,22 @@
 
 《ときめきメモリアル Girls Side 3rd Story》相关工具  
 
-目前仅支持DFI(idx img)文件解包和打包，支持OFS3解包与打包。  
+目前支持DFI(idx img)文件解包和打包，支持OFS3解包与打包。  
 
 具体使用方法参见**Example**  
 
 ## Usage
 DFI即idx文件，需要与之对应的img文件  
 开启日志`-log`和`-ofs3.log`会影响性能，默认**关闭**所有日志  
-无论解包还是打包，均需要**对应的原文件**  
+无论解包还是打包，均需要**对应的原文件**   
+如果想要自动处理gz处理，即自动解压和压缩，需要在解包和打包时都开启`-gz`选项  
 ```shell
   -append
         [打包]追加写入模式
   -dfi.ofs3
         [DFI解包]递归解包所有OFS3格式文件
   -gz
-        解包时是否自动解压gz文件(解压后为.dgz文件，导入需要手动压缩并去掉后缀)
+        打包和解包是否自动处理gz压缩(支持DFI、ofs3的打包和解包操作)
   -i string
         [打包]输入文件夹路径
   -idx string
@@ -48,7 +49,37 @@ DFI即idx文件，需要与之对应的img文件
 
 ## Example
 ```shell
-# 4.18 对比idx、img、INSTALL.DAT（解密后的）
+
+# 5.21 [解包img] 协同解密后的INSTALL.DAT进行解包，自动处理gz（不支持append与patch）
+TMGS3Tools -idx=data/cdimg.idx \
+           -img=data/cdimg0.img \
+           -install=data/INSTALL.DAT \
+           -o=data/output \
+           -gz
+           
+# 5.21 [打包img] 协同解密后的INSTALL.DAT进行打包，输出修改后的idx、img与DAT，自动处理gz（不支持append与patch）
+# 默认输出的DAT文件名为out_INSTALL.DAT
+TMGS3Tools -idx=data/cdimg.idx \
+           -img=data/cdimg0.img \
+           -install=data/INSTALL.DAT \
+           -i=data/output \
+           -o=data/_cdimg0.img \
+           -o2=data/_cdimg.idx \
+           -gz
+              
+          
+# 5.21 [解包ofs3] OFS3单独解包，输出到data/ofs3/output，自动处理gz
+TMGS3Tools -ofs3=data/ofs3/005.bin \
+           -o=data/ofs3/output \
+           -gz
+           
+# 5.21 [打包ofs3] OFS3单独打包，输出到data/ofs3/005.out.bin，自动处理gz
+TMGS3Tools -ofs3=data/ofs3/005.bin \
+           -i=data/ofs3/output \
+           -o=data/ofs3/005.out.bin \
+           -gz
+           
+# 4.18 [对比] idx、img、INSTALL.DAT（解密后的）
 TMGS3Tools -idx=data/cdimg.idx \
            -img=data/cdimg0.img \
            -install=data/INSTALL.DAT \
@@ -56,21 +87,6 @@ TMGS3Tools -idx=data/cdimg.idx \
            -img2=data/_cdimg0.img \
            -install2=data/out_INSTALL.DAT
 
-
-# 4.11 协同解密后的INSTALL.DAT进行解包（不支持append与patch）
-TMGS3Tools -idx=data/cdimg.idx \
-           -img=data/cdimg0.img \
-           -install=data/INSTALL.DAT \
-           -o=data/output 
-           
-# 4.11 协同解密后的INSTALL.DAT进行打包，输出修改后的idx、img与DAT（不支持append与patch）
-# 默认输出的DAT文件名为out_INSTALL.DAT
-TMGS3Tools -idx=data/cdimg.idx \
-           -img=data/cdimg0.img \
-           -install=data/INSTALL.DAT \
-           -i=data/output \
-           -o=data/_cdimg0.img \
-           -o2=data/_cdimg.idx
 
 # 打包 追加模式，打补丁模式。输出文件名为data/01/a.out.idx和data/01/a.out.img
 # 此模式的 -o 可以是使用append后的img文件
@@ -83,44 +99,19 @@ TMGS3Tools -idx=data/_cdimg.idx \
            -patch=1072887808 \
            -append 
 
-# OFS3单独解包，输出到data/ofs3/output，开启日志
-TMGS3Tools -ofs3=data/ofs3/005.bin \
-           -o=data/ofs3/output \
-           -ofs3.log
-           
-# OFS3单独打包，输出到data/ofs3/005.out.bin，开启日志
-TMGS3Tools -ofs3=data/ofs3/005.bin \
-           -i=data/ofs3/output \
-           -o=data/ofs3/005.out.bin # -ofs3.log
-
-# 解包，输出到data/01/output文件夹中
-TMGS3Tools -idx=data/01/a.idx \
-           -img=data/01/a.img \
-           -o=data/01/output 
-
 # 解包（含OFS3文件），输出到data/01/output文件夹中
 TMGS3Tools -idx=data/01/a.idx \
            -img=data/01/a.img \
            -o=data/01/output \
-           -dfi.ofs3 # -ofs3.log
+           -dfi.ofs3
 
-# 打包 普通模式，输出文件名为data/01/a.out.idx和data/01/a.out.img
-TMGS3Tools -idx=data/01/a.idx \
-           -img=data/01/a.img \
-           -i=data/01/output \
-           -o=data/01/a.out  
-
-# 打包 追加模式，输出文件名为data/01/a.out.idx和data/01/a.out.img
-TMGS3Tools -idx=data/01/a.idx \
-           -img=data/01/a.img \
-           -i=data/01/output \
-           -o=data/01/a.out \
-           -append 
 
 ```
-## 未来
 
 ## 更新日志
+
+### 2022-5-21
+- 支持DFI、OFS3的gz完全支持，解包、打包时使用`-gz`参数，可完全忽略gz压缩
 
 ### 2022-4-18
 - 增加对比功能

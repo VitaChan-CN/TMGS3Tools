@@ -4,6 +4,7 @@ import (
 	"TMGS3Tools/ofs3"
 	"TMGS3Tools/utils"
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"fmt"
 	"github.com/go-restruct/restruct"
@@ -23,13 +24,15 @@ type DFI struct {
 }
 
 type Node struct {
-	IsDirN    int    `struct:"int16"`
-	FileCount int    `struct:"int16"`
-	Unknown1  int    `struct:"int32"`
-	Offset    int    `struct:"int32"`
-	Length    int    `struct:"int32"`
-	FileName  string `struct:"-"`
-	FilePath  string `struct:"-"` // 完整路径
+	IsDirN    int           `struct:"int16"`
+	FileCount int           `struct:"int16"`
+	Unknown1  int           `struct:"int32"`
+	Offset    int           `struct:"int32"`
+	Length    int           `struct:"int32"`
+	FileName  string        `struct:"-"`
+	FilePath  string        `struct:"-"` // 完整路径
+	FileType  ofs3.FileType `struct:"-"` // 文件类型
+	GzHeader  *gzip.Header  `struct:"-"`
 }
 
 func (n *Node) IsDir() bool {
@@ -112,29 +115,38 @@ func (d *DFI) LoadImg(imgFile, installFile string, openOfs3 bool, gz bool) {
 			} else {
 				f2.ReadAt(data, int64(node.Offset)-size)
 			}
-
-			if openOfs3 && len(data) > 4 && string(data[0:4]) == "OFS3" {
-				if ShowLog {
-					fmt.Printf("OFS3文件 %v\n", node)
+			node.FileType = ofs3.GetFileType(data)
+			switch node.FileType {
+			case ofs3.FILE_GZ:
+				if gz {
+					data, node.GzHeader = ofs3.GzDecode(data, false)
+					if ShowLog {
+						fmt.Println(node.GzHeader)
+					}
 				}
-				ofs := ofs3.OpenOFS3(data, node.FilePath)
-				ofs.WriteFile(data, node.FilePath, gz)
-				if ShowLog {
-					fmt.Printf("\t %v\n", ofs.Header)
+				fallthrough
+			case ofs3.FILE_OFS3:
+				if openOfs3 {
+					if ShowLog {
+						fmt.Printf("OFS3文件 %v\n", node)
+					}
+					ofs := ofs3.OpenOFS3(data, node.FilePath)
+					ofs.WriteFile(data, node.FilePath, gz)
+					if ShowLog {
+						fmt.Printf("\t %v\n", ofs.Header)
+					}
 				}
-			} else {
+				fallthrough
+			case ofs3.FILE_OTHER:
+				fallthrough
+			default:
 				if ShowLog {
 					fmt.Printf("文件 %v\n", node)
-				}
-				if gz {
-					data = ofs3.Decode(data)
-					node.FilePath = ofs3.DecodeName(data, node.FilePath)
 				}
 				tf, _ := os.Create(node.FilePath)
 				tf.Write(data)
 				tf.Close()
 			}
-
 		} else {
 			if ShowLog {
 				fmt.Printf("不在此文件中 %v\n", node)
@@ -144,7 +156,7 @@ func (d *DFI) LoadImg(imgFile, installFile string, openOfs3 bool, gz bool) {
 
 }
 
-func (d *DFI) ReBuildImg(imgFile, outputFile, installFile string, appendMode bool, patchOffset int) {
+func (d *DFI) ReBuildImg(imgFile, outputFile, installFile string, gz bool, appendMode bool, patchOffset int) {
 	var f, f2 *os.File
 	var out, out2 *os.File
 	f, _ = os.Open(imgFile)
@@ -211,6 +223,15 @@ func (d *DFI) ReBuildImg(imgFile, outputFile, installFile string, appendMode boo
 			install = true
 			d.ImgSize = offset
 		}
+		// 读取原文件
+		dataSrc := make([]byte, d.Nodes[i].Length)
+		if !install {
+			f.ReadAt(dataSrc, int64(d.Nodes[i].Offset))
+		} else {
+			f2.ReadAt(dataSrc, int64(d.Nodes[i].Offset)-size)
+		}
+		d.Nodes[i].FileType = ofs3.GetFileType(dataSrc)
+
 		if !utils.FileExists(d.Nodes[i].FilePath) {
 			if appendMode {
 				continue
@@ -218,22 +239,17 @@ func (d *DFI) ReBuildImg(imgFile, outputFile, installFile string, appendMode boo
 			if ShowLog {
 				fmt.Printf("文件不存在，将使用原数据。%v\n", d.Nodes[i].FilePath)
 			}
-			data = make([]byte, d.Nodes[i].Length)
-			if !install {
-				f.ReadAt(data, int64(d.Nodes[i].Offset))
-			} else {
-				f2.ReadAt(data, int64(d.Nodes[i].Offset)-size)
-			}
+			data = dataSrc
 
 		} else {
 			data, _ = os.ReadFile(d.Nodes[i].FilePath)
-			if appendMode {
-				dataSrc := make([]byte, d.Nodes[i].Length)
-				if !install {
-					f.ReadAt(dataSrc, int64(d.Nodes[i].Offset))
-				} else {
-					f2.ReadAt(dataSrc, int64(d.Nodes[i].Offset))
+			if gz && d.Nodes[i].FileType == ofs3.FILE_GZ {
+				_, d.Nodes[i].GzHeader = ofs3.GzDecode(dataSrc, true)
+				data = ofs3.GzEncode(data, d.Nodes[i].GzHeader)
+				if ShowLog {
+					fmt.Println(d.Nodes[i].GzHeader)
 				}
+			} else if appendMode {
 				if utils.MD5(data) == utils.MD5(dataSrc) {
 					if ShowLog {
 						fmt.Printf("文件未更改，跳过。%v\n", d.Nodes[i].FilePath)

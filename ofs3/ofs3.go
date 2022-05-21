@@ -3,6 +3,7 @@ package ofs3
 import (
 	"TMGS3Tools/utils"
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"fmt"
 	"github.com/go-restruct/restruct"
@@ -34,6 +35,8 @@ type File struct {
 	Name       string
 	FilePath   string
 	*OFS3
+	FileType FileType     `struct:"-"` // 文件类型
+	GzHeader *gzip.Header `struct:"-"`
 }
 
 // OpenOFS3
@@ -55,7 +58,9 @@ func OpenOFS3(data []byte, dir string) *OFS3 {
 		fmt.Printf("解析OFS3文件头失败 %v\n", err)
 		return nil
 	}
-	fmt.Println(ofs3.Header)
+	if ShowLog {
+		fmt.Println(ofs3.Header)
+	}
 	nameStr := bytes.NewBuffer(nil)
 	// 0x10(Header.Length) + 4(Header.Count)
 	offset := ofs3.Length + 4
@@ -114,13 +119,23 @@ func OpenOFS3(data []byte, dir string) *OFS3 {
 	for _, file := range ofs3.Files {
 		// 子文件数据
 		subData := data[file.Offset : file.Offset+file.Size]
-		if string(subData[0:4]) == "OFS3" {
+		file.FileType = GetFileType(subData[0:4])
+		switch file.FileType {
+		case FILE_OFS3:
 			// 子文件为OFS3，递归解析
 			if ShowLog {
 				fmt.Printf("OFS3 %v\n", file.FilePath)
 			}
 			file.OFS3 = OpenOFS3(subData, file.FilePath)
-		} else {
+		case FILE_GZ:
+			// GZ文件
+			if ShowLog {
+				fmt.Printf("GZ %v\n", *file)
+			}
+			_, file.GzHeader = GzDecode(subData, true)
+		case FILE_OTHER:
+			fallthrough
+		default:
 			// 非OFS3，一般文件
 			if ShowLog {
 				fmt.Printf("文件 %v\n", *file)
@@ -149,15 +164,21 @@ func (ofs3 *OFS3) WriteFile(data []byte, dir string, gz bool) {
 	for _, file := range ofs3.Files {
 		// 子文件数据
 		subData := data[file.Offset : file.Offset+file.Size]
-		if file.OFS3 != nil {
+		file.FileType = GetFileType(subData[0:4])
+		switch file.FileType {
+		case FILE_OFS3:
 			// 子文件为OFS3，递归读取
 			file.WriteFile(subData, file.FilePath, gz)
-		} else {
-			// 非OFS3，一般文件
+		case FILE_GZ:
+			// GZ文件
 			if gz {
-				subData = Decode(subData)
-				file.FilePath = DecodeName(data, file.FilePath)
+				subData, file.GzHeader = GzDecode(subData, false)
 			}
+			fallthrough
+		case FILE_OTHER:
+			fallthrough
+		default:
+			// 非OFS3，一般文件
 			err = os.WriteFile(file.FilePath, subData, os.ModePerm)
 			if err != nil {
 				fmt.Printf("Error 写入[%v]文件失败！%v\n", file.FilePath, err)
@@ -212,11 +233,25 @@ func (ofs3 *OFS3) createOFS3(srcData []byte) []byte {
 			nameMap[file.Name] = i
 
 		}
-		if file.OFS3 != nil {
+		switch file.FileType {
+		case FILE_OFS3:
 			// 递归写入ofs3数据
 			subData := srcData[file.Offset : file.Offset+file.Size]
 			subFileData = file.OFS3.createOFS3(subData)
-		} else {
+		case FILE_GZ:
+			subFileData, err = os.ReadFile(file.FilePath)
+			if err != nil {
+				if ShowLog {
+					fmt.Printf("文件不存在，将使用原数据 %v\n", file.FilePath)
+				}
+				// 截取原数据
+				subFileData = srcData[file.Offset : file.Offset+file.Size]
+			} else {
+				subFileData = GzEncode(subFileData, file.GzHeader)
+			}
+		case FILE_OTHER:
+			fallthrough
+		default:
 			subFileData, err = os.ReadFile(file.FilePath)
 			if err != nil {
 				if ShowLog {

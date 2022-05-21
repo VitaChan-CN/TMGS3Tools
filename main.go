@@ -13,7 +13,7 @@ var ShowLog = true
 
 func main() {
 	fmt.Println("WeTor wetorx@qq.com")
-	fmt.Println("Version: 0.4.1")
+	fmt.Println("Version: 0.5.0")
 	var idxFile, imgFile, inputDir, output, output2 string
 	var ofs3File, installFile string
 	var inputAppend, log, ofs3log, ofs3Mode, gz bool
@@ -32,7 +32,7 @@ func main() {
 	flag.BoolVar(&log, "log", false, "显示日志")
 	flag.BoolVar(&ofs3Mode, "dfi.ofs3", false, "[DFI解包]递归解包所有OFS3格式文件")
 	flag.BoolVar(&ofs3log, "ofs3.log", false, "显示OFS3日志")
-	flag.BoolVar(&gz, "gz", false, "解包时是否自动解压gz文件(解压后为.dgz文件，导入需要手动压缩并去掉后缀)")
+	flag.BoolVar(&gz, "gz", false, "打包和解包是否自动处理gz压缩(支持DFI、ofs3的打包和解包操作)")
 
 	var patchOffset int
 	flag.IntVar(&patchOffset, "patch", 0, "[打包]对已存在的-o文件的指定位置进行修改而不是创建新的，仅append模式有效。输入原img大小")
@@ -73,7 +73,7 @@ func main() {
 			return
 		}
 		dfi.SetDir(inputDir, true)
-		dfi.ReBuildImg(imgFile, output, installFile, inputAppend, patchOffset)
+		dfi.ReBuildImg(imgFile, output, installFile, gz, inputAppend, patchOffset)
 		idxName := output + ".idx"
 		if len(output2) > 0 {
 			idxName = output2
