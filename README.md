@@ -1,6 +1,7 @@
 # TMGS3Tools
 
 《ときめきメモリアル Girls Side 3rd Story》相关工具  
+**《ときめきメモリアル Girls Side 3rd Story》** 已经在汉化中，请勿撞坑  
 
 目前支持DFI(idx img)文件解包和打包，支持OFS3解包与打包。  
 
