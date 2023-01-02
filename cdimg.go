@@ -212,7 +212,7 @@ func (d *DFI) ReBuildImg(imgFile, outputFile, installFile string, gz bool, appen
 			offset = int(size)
 			offset = utils.AlignUp(offset, 2048)
 		}
-
+		d.ImgSize = offset
 	}
 	install := false
 	for i := 0; i < endIndex; i++ {
@@ -274,9 +274,11 @@ func (d *DFI) ReBuildImg(imgFile, outputFile, installFile string, gz bool, appen
 		offset = utils.AlignUp(offset, 2048)
 	}
 	// 字节对齐
-	out.Truncate(int64(d.ImgSize))
-	out2.Truncate(int64(offset - d.ImgSize))
-	if !install {
+	if install {
+		out.Truncate(int64(d.ImgSize))
+		out2.Truncate(int64(offset - d.ImgSize))
+	} else {
+		out.Truncate(int64(offset))
 		// INSTALL 偏移修改
 		for i := endIndex; i < len(d.Nodes); i++ {
 			if d.Nodes[i].IsDir() {

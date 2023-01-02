@@ -47,6 +47,22 @@ func TestDFI_ReBuildImg1(t *testing.T) {
 	fmt.Printf("%v\n%v\n", utils.MD5F(inputIdx), utils.MD5F(outputIdx))
 }
 
+func TestDFI_ReBuildImg2(t *testing.T) {
+	restruct.EnableExprBeta()
+	dir := "data/a/"
+	inputIdx := dir + "0"
+	inputImg := dir + "a.img"
+	outputIdx := dir + "a.out.idx"
+	outputImg := dir + "a.out.img"
+
+	dfi := LoadIdx(inputIdx)
+	dfi.SetDir(dir+"out", true)
+	dfi.ReBuildImg(inputImg, outputImg, "", false, false, 0)
+	dfi.SaveIdx(outputIdx)
+	fmt.Printf("%v\n%v\n", utils.MD5F(inputImg), utils.MD5F(outputImg))
+	fmt.Printf("%v\n%v\n", utils.MD5F(inputIdx), utils.MD5F(outputIdx))
+}
+
 func TestDFI_LoadImg(t *testing.T) {
 	restruct.EnableExprBeta()
 	dir := "data/"
