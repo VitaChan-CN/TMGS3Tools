@@ -1,15 +1,16 @@
 package ofs3
 
 import (
-	"TMGS3Tools/utils"
 	"bytes"
 	"compress/gzip"
 	"encoding/binary"
 	"fmt"
-	"github.com/go-restruct/restruct"
 	"os"
 	"path"
 	"strconv"
+
+	"TMGS3Tools/utils"
+	"github.com/go-restruct/restruct"
 )
 
 var ShowLog = true
@@ -40,11 +41,11 @@ type File struct {
 }
 
 // OpenOFS3
-//  Description
-//  Param data []byte OFS3文件数据
-//  Param dir string 保存到目录。进用来计算目录层级，不会创建文件夹
-//  Return *OFS3
 //
+//	Description
+//	Param data []byte OFS3文件数据
+//	Param dir string 保存到目录。进用来计算目录层级，不会创建文件夹
+//	Return *OFS3
 func OpenOFS3(data []byte, dir string) *OFS3 {
 	if string(data[0:4]) != "OFS3" {
 		fmt.Println("不是OFS3文件")
@@ -84,11 +85,20 @@ func OpenOFS3(data []byte, dir string) *OFS3 {
 			offsetMap[file.Offset] = i
 		}
 		offset += 4
-		// 文件大小，SubType=1时为0 ？
+		// 文件大小，SubType=1时，为index
 		file.Size = utils.ReadUInt32(data[offset : offset+4])
 		offset += 4
-		// Type == 2 ,含文件名偏移
-		if ofs3.Type == 2 {
+
+		switch ofs3.SubType {
+		case 1:
+			file.Name = strconv.Itoa(file.Size)
+		default:
+			file.Name = strconv.Itoa(i)
+		}
+
+		switch ofs3.Type {
+		case 2:
+			// Type == 2 ,含文件名偏移
 			// 文件名偏移，默认不含Header.Length
 			file.NameOffset = utils.ReadUInt32(data[offset:offset+4]) + ofs3.Length
 			offset += 4
@@ -99,13 +109,11 @@ func OpenOFS3(data []byte, dir string) *OFS3 {
 				nameOffset++
 			}
 			file.Name = nameStr.String()
-		} else {
-			file.Name = strconv.Itoa(i)
 		}
 		file.FilePath = path.Join(dir, file.Name)
 	}
 
-	// SubType == 1 File.Size=0，需要重新计算
+	// SubType == 1 File.Size为index，需要重新计算Size
 	if ofs3.SubType == 1 {
 		for i := 0; i <= ofs3.Count; i++ {
 			if i == ofs3.Count {
@@ -147,11 +155,11 @@ func OpenOFS3(data []byte, dir string) *OFS3 {
 }
 
 // WriteFile
-//  Description 根据OFS3树导出文件
-//  Receiver ofs3 *OFS3
-//  Param data []byte 原文件数据
-//  Param dir string 所在目录，会创建文件夹
 //
+//	Description 根据OFS3树导出文件
+//	Receiver ofs3 *OFS3
+//	Param data []byte 原文件数据
+//	Param dir string 所在目录，会创建文件夹
 func (ofs3 *OFS3) WriteFile(data []byte, dir string, gz bool) {
 	var err error
 	if !utils.DirExists(dir) {
@@ -188,11 +196,11 @@ func (ofs3 *OFS3) WriteFile(data []byte, dir string, gz bool) {
 }
 
 // ReBuild
-//  Description
-//  Receiver ofs3 *OFS3
-//  Param data []byte 原ofs3数据
-//  Param output string
 //
+//	Description
+//	Receiver ofs3 *OFS3
+//	Param data []byte 原ofs3数据
+//	Param output string
 func (ofs3 *OFS3) ReBuild(data []byte, output string, gz bool) {
 	result := ofs3.createOFS3(data)
 	err := os.WriteFile(output, result, os.ModePerm)
@@ -263,9 +271,15 @@ func (ofs3 *OFS3) createOFS3(srcData []byte) []byte {
 		}
 		fileData.Write(subFileData)
 		file.Offset = offset
-		if ofs3.SubType == 1 {
-			file.Size = 0
-		} else {
+		switch ofs3.SubType {
+		case 1:
+			file.Size, err = strconv.Atoi(file.Name)
+			if err != nil {
+				if ShowLog {
+					fmt.Printf("文件名错误，应为数值 %v\n", file.Name)
+				}
+			}
+		default:
 			file.Size = len(subFileData)
 			if file.Size == 0 {
 				file.Offset = 0

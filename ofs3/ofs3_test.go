@@ -1,13 +1,14 @@
 package ofs3
 
 import (
-	"TMGS3Tools/utils"
 	"fmt"
-	"github.com/go-restruct/restruct"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	"TMGS3Tools/utils"
+	"github.com/go-restruct/restruct"
 )
 
 func TestOpenOFS3(t *testing.T) {
