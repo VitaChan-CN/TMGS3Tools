@@ -13,7 +13,7 @@ var ShowLog = true
 
 func main() {
 	fmt.Println("WeTor wetorx@qq.com")
-	fmt.Println("Version: 0.5.0")
+	fmt.Println("Version: 0.5.3")
 	var idxFile, imgFile, inputDir, output, output2 string
 	var ofs3File, installFile string
 	var inputAppend, log, ofs3log, ofs3Mode, gz bool
