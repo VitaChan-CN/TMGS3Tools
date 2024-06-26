@@ -13,10 +13,10 @@ import (
 
 func TestOpenOFS3(t *testing.T) {
 	restruct.EnableExprBeta()
-	dir := "../data/ofs3/script"
-	name := "scp001"
+	dir := "../data/ofs3"
+	name := "boy_room_permanent.bin"
 	input := path.Join(dir, name)
-	outputDir := path.Join(dir, name+".dir")
+	outputDir := path.Join(dir, name+".dir") + "/"
 	ShowLog = true
 
 	data, err := os.ReadFile(input)
@@ -24,12 +24,12 @@ func TestOpenOFS3(t *testing.T) {
 		panic(err)
 	}
 	t1 := time.Now()
-	ofs := OpenOFS3(data, outputDir)
+	ofs := OpenOFS3(data, outputDir, true)
 	elapsed := time.Since(t1)
 	fmt.Println("App elapsed: ", elapsed)
 	fmt.Println("==========开始写出数据==========")
 	t1 = time.Now()
-	ofs.WriteFile(data, outputDir, true)
+	ofs.WriteFile(data, true)
 	elapsed = time.Since(t1)
 	fmt.Println("App elapsed: ", elapsed)
 	fmt.Println(ofs)
@@ -37,11 +37,11 @@ func TestOpenOFS3(t *testing.T) {
 
 func TestOFS3_ReBuild(t *testing.T) {
 	restruct.EnableExprBeta()
-	dir := "../data/ofs3/script"
-	name := "scp001"
+	dir := "../data/ofs3"
+	name := "boy_room_permanent.bin"
 	outputName := name + ".out"
 	input := path.Join(dir, name)
-	outputDir := path.Join(dir, name+".dir")
+	outputDir := path.Join(dir, name+".dir") + "/"
 	output := path.Join(dir, outputName)
 	ShowLog = true
 
@@ -50,7 +50,7 @@ func TestOFS3_ReBuild(t *testing.T) {
 		panic(err)
 	}
 	t1 := time.Now()
-	ofs := OpenOFS3(data, outputDir)
+	ofs := OpenOFS3(data, outputDir, true)
 	elapsed := time.Since(t1)
 	fmt.Println("App elapsed: ", elapsed)
 	fmt.Println("==========开始写出数据==========")

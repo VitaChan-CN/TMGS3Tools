@@ -50,6 +50,19 @@ DFI即idx文件，需要与之对应的img文件
 
 ## Example
 ```shell
+# 2024.6.25 [打包解包ofs3] 平坦模式输入输出
+TMGS3Tools -ofs3=data/ofs3/005.bin \
+           -o=data/ofs3/output \
+           -gz \
+           -flat
+           
+TMGS3Tools -ofs3=data/ofs3/005.bin \
+           -i=data/ofs3/output \
+           -o=data/ofs3/005.out.bin \
+           -gz \
+           -flat
+
+
 
 # 5.21 [解包img] 协同解密后的INSTALL.DAT进行解包，自动处理gz（不支持append与patch）
 TMGS3Tools -idx=data/cdimg.idx \

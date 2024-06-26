@@ -1,22 +1,25 @@
 package main
 
 import (
-	"TMGS3Tools/ofs3"
-	"TMGS3Tools/utils"
 	"flag"
 	"fmt"
-	"github.com/go-restruct/restruct"
 	"os"
+	"path/filepath"
+	"strings"
+
+	"TMGS3Tools/ofs3"
+	"TMGS3Tools/utils"
+	"github.com/go-restruct/restruct"
 )
 
 var ShowLog = true
 
 func main() {
 	fmt.Println("WeTor wetorx@qq.com")
-	fmt.Println("Version: 0.5.3")
+	fmt.Println("Version: 0.5.4")
 	var idxFile, imgFile, inputDir, output, output2 string
 	var ofs3File, installFile string
-	var inputAppend, log, ofs3log, ofs3Mode, gz bool
+	var inputAppend, log, ofs3log, ofs3Mode, gz, flat bool
 	var idxFile2, imgFile2, installFile2 string
 	flag.StringVar(&idxFile, "idx", "", "[DFI必要]cdimg.idx文件名")
 	flag.StringVar(&imgFile, "img", "", "[DFI必要]cdimg.idx文件名")
@@ -33,6 +36,7 @@ func main() {
 	flag.BoolVar(&ofs3Mode, "dfi.ofs3", false, "[DFI解包]递归解包所有OFS3格式文件")
 	flag.BoolVar(&ofs3log, "ofs3.log", false, "显示OFS3日志")
 	flag.BoolVar(&gz, "gz", false, "打包和解包是否自动处理gz压缩(支持DFI、ofs3的打包和解包操作)")
+	flag.BoolVar(&flat, "flat", false, "打包和解包是是否扁平模式（输入和输出不存在文件夹层级）")
 
 	var patchOffset int
 	flag.IntVar(&patchOffset, "patch", 0, "[打包]对已存在的-o文件的指定位置进行修改而不是创建新的，仅append模式有效。输入原img大小")
@@ -48,16 +52,26 @@ func main() {
 	}
 
 	if len(ofs3File) > 0 && len(output) > 0 && len(inputDir) > 0 {
+		inputDir = filepath.ToSlash(inputDir)
+		if !strings.HasSuffix(inputDir, "/") {
+			inputDir += "/"
+		}
+
 		// ofs3打包
 		data, _ := os.ReadFile(ofs3File)
-		ofs := ofs3.OpenOFS3(data, inputDir)
+		ofs := ofs3.OpenOFS3(data, inputDir, flat)
 		ofs.ReBuild(data, output, gz)
 		return
 	} else if len(ofs3File) > 0 && len(output) > 0 {
+		output = filepath.ToSlash(output)
+		if !strings.HasSuffix(output, "/") {
+			output += "/"
+		}
+
 		// ofs3解包
 		data, _ := os.ReadFile(ofs3File)
-		ofs := ofs3.OpenOFS3(data, output)
-		ofs.WriteFile(data, output, gz)
+		ofs := ofs3.OpenOFS3(data, output, flat)
+		ofs.WriteFile(data, gz)
 		return
 
 	} else if len(idxFile)*len(imgFile) == 0 {
@@ -86,7 +100,7 @@ func main() {
 			return
 		}
 		dfi.SetDir(output, false)
-		dfi.LoadImg(imgFile, installFile, ofs3Mode, gz)
+		dfi.LoadImg(imgFile, installFile, ofs3Mode, gz, flat)
 	}
 
 }

@@ -1,16 +1,17 @@
 package main
 
 import (
-	"TMGS3Tools/ofs3"
-	"TMGS3Tools/utils"
 	"bytes"
 	"compress/gzip"
 	"encoding/binary"
 	"fmt"
-	"github.com/go-restruct/restruct"
 	"io"
 	"os"
 	"path"
+
+	"TMGS3Tools/ofs3"
+	"TMGS3Tools/utils"
+	"github.com/go-restruct/restruct"
 )
 
 type DFI struct {
@@ -88,7 +89,7 @@ func (d *DFI) SetDir(dir string, isInput bool) {
 	}
 }
 
-func (d *DFI) LoadImg(imgFile, installFile string, openOfs3 bool, gz bool) {
+func (d *DFI) LoadImg(imgFile, installFile string, openOfs3 bool, gz, flat bool) {
 
 	var f, f2 *os.File
 	f, _ = os.Open(imgFile)
@@ -130,8 +131,8 @@ func (d *DFI) LoadImg(imgFile, installFile string, openOfs3 bool, gz bool) {
 					if ShowLog {
 						fmt.Printf("OFS3文件 %v\n", node)
 					}
-					ofs := ofs3.OpenOFS3(data, node.FilePath)
-					ofs.WriteFile(data, node.FilePath, gz)
+					ofs := ofs3.OpenOFS3(data, node.FilePath, flat)
+					ofs.WriteFile(data, gz)
 					if ShowLog {
 						fmt.Printf("\t %v\n", ofs.Header)
 					}

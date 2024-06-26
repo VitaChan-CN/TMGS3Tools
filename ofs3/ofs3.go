@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 
 	"TMGS3Tools/utils"
 	"github.com/go-restruct/restruct"
@@ -46,7 +47,7 @@ type File struct {
 //	Param data []byte OFS3文件数据
 //	Param dir string 保存到目录。进用来计算目录层级，不会创建文件夹
 //	Return *OFS3
-func OpenOFS3(data []byte, dir string) *OFS3 {
+func OpenOFS3(data []byte, dir string, flat bool) *OFS3 {
 	if string(data[0:4]) != "OFS3" {
 		fmt.Println("不是OFS3文件")
 		return nil
@@ -110,7 +111,16 @@ func OpenOFS3(data []byte, dir string) *OFS3 {
 			}
 			file.Name = nameStr.String()
 		}
-		file.FilePath = path.Join(dir, file.Name)
+		if flat {
+			if strings.HasSuffix(dir, "/") {
+				file.FilePath = path.Join(dir, file.Name)
+			} else {
+				file.FilePath = dir + "_" + file.Name
+			}
+		} else {
+			file.FilePath = path.Join(dir, file.Name)
+		}
+
 	}
 
 	// SubType == 1 File.Size为index，需要重新计算Size
@@ -134,7 +144,7 @@ func OpenOFS3(data []byte, dir string) *OFS3 {
 			if ShowLog {
 				fmt.Printf("OFS3 %v\n", file.FilePath)
 			}
-			file.OFS3 = OpenOFS3(subData, file.FilePath)
+			file.OFS3 = OpenOFS3(subData, file.FilePath, flat)
 		case FILE_GZ:
 			// GZ文件
 			if ShowLog {
@@ -160,15 +170,8 @@ func OpenOFS3(data []byte, dir string) *OFS3 {
 //	Receiver ofs3 *OFS3
 //	Param data []byte 原文件数据
 //	Param dir string 所在目录，会创建文件夹
-func (ofs3 *OFS3) WriteFile(data []byte, dir string, gz bool) {
+func (ofs3 *OFS3) WriteFile(data []byte, gz bool) {
 	var err error
-	if !utils.DirExists(dir) {
-		err = os.Mkdir(dir, os.ModePerm)
-		if err != nil {
-			fmt.Printf("创建文件夹失败 %v\n", dir)
-			return
-		}
-	}
 	for _, file := range ofs3.Files {
 		// 子文件数据
 		subData := data[file.Offset : file.Offset+file.Size]
@@ -176,7 +179,7 @@ func (ofs3 *OFS3) WriteFile(data []byte, dir string, gz bool) {
 		switch file.FileType {
 		case FILE_OFS3:
 			// 子文件为OFS3，递归读取
-			file.WriteFile(subData, file.FilePath, gz)
+			file.WriteFile(subData, gz)
 		case FILE_GZ:
 			// GZ文件
 			if gz {
@@ -186,6 +189,15 @@ func (ofs3 *OFS3) WriteFile(data []byte, dir string, gz bool) {
 		case FILE_OTHER:
 			fallthrough
 		default:
+			subDir := path.Dir(file.FilePath)
+			if !utils.DirExists(subDir) {
+				err = os.MkdirAll(subDir, os.ModePerm)
+				if err != nil {
+					fmt.Printf("创建文件夹失败 %v\n", subDir)
+					return
+				}
+			}
+
 			// 非OFS3，一般文件
 			err = os.WriteFile(file.FilePath, subData, os.ModePerm)
 			if err != nil {
